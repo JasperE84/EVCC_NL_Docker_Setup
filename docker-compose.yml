@@ -1,0 +1,90 @@
+version: '3'
+
+services:
+  evcc:
+    command:
+      - evcc
+    container_name: evcc
+    image: evcc/evcc:latest
+    ports:
+      - 7070:7070/tcp
+      - 8887:8887/tcp
+      - 7090:7090/udp
+      - 9522:9522/udp
+    volumes:
+      - type: bind
+        source: ./data/evcc/evcc.yaml
+        target: /etc/evcc.yaml
+      - ./data/evcc/data:/root/.evcc
+    environment:
+      - EVCC_SITE_TITLE
+      - EVCC_NETWORK_HOST=${VIRTUAL_HOST}
+    restart: unless-stopped
+
+  dsmrdb:
+    # When using Postgres, release 13.x and 14.x are supported only
+    # due to the limited availability of client packages, especially for arm32v7
+    image: postgres:14-alpine
+    container_name: dsmrdb
+    restart: always
+    volumes:
+      - ./data/dsmrdb:/var/lib/postgresql/data
+    environment:
+      - TZ
+      - PG_TZ=${TZ}
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+    healthcheck:
+      # postgres is the default user, please update with
+      # the DJANGO_DATABASE_USER used for dsmr-reader-docker
+      # default for DSMR Reader is dsmrreader
+      test: [ "CMD-SHELL", "pg_isready -U dsmrreader" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  dsmr:
+    image: ghcr.io/xirixiz/dsmr-reader-docker:latest
+    depends_on:
+      dsmrdb:
+        condition: service_healthy
+    container_name: dsmr
+    links:
+      - dsmrdb
+    cap_add:
+      - NET_ADMIN
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./data/dsmr/dsmr_backups:/app/backups
+    environment:
+      - TZ
+      - VIRTUAL_HOST
+      - DJANGO_TIME_ZONE=${TZ}
+      - DJANGO_DATABASE_NAME=${POSTGRES_DB}
+      - DJANGO_DATABASE_USER=${POSTGRES_USER}
+      - DJANGO_DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - 7777:80
+      - 7779:443
+    devices:
+      - ${P1_TTYNAME}:/dev/ttyUSB0
+    # healthcheck:
+    #   disable: true
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-Lsf",
+          "http://127.0.0.1/about",
+          "-o",
+          "/dev/null",
+          "-w",
+          "HTTP_%{http_code}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
