@@ -1,5 +1,6 @@
 # EVCC configuratiestappen voor een Nederlandse slimme meter.
-EVCC is een open source project waarmee je je laadpaal kan aansturen om zoveel mogelijk op zonnestroom te laden. Dit project is een voorbeelduitwerking van de hiervoor benodigde (minimale) configuratie.
+EVCC is een open source project waarmee je je laadpaal kan aansturen om zoveel mogelijk op zonnestroom te laden. Op basis van een koppeling met je slimme meter, en optioneel ook je PV-installatie, kan EVCC bepalen op welk vermogen je laadpaal mag laden. 
+Dit project is een voorbeelduitwerking van de hiervoor benodigde (minimale) configuratie.
 
 <img src="./docs/img/EVCC_Screenshot.jpg" width="30%">
 
@@ -12,6 +13,15 @@ In EVCC kan je allerlei apparaten koppelen, zoals thuisbatterijen en PV-installa
 De slimme meter wordt uitgelezen om te bepalen wat je huishouden op ieder moment teruglevert aan het net. EVCC kan dan bepalen of er een overschot is waarmee de auto geladen mag worden. EVCC moet vervolgens met je laadpaal kunnen communiceren om aan te sturen of er danwel (1) *niet* geladen mag worden, (2) op de *minimale stroomsterkte* benodigd voor de auto geladen mag worden, of dat (3) er op *vol vermogen* geladen mag worden.
 
 De tweede optie is bedoeld voor situaties waarin er minder PV-vermogen beschikbaar is dan het minimale vermogen om je EV mee te kunnen laden. Door te limiteren op het minimum laadvermogen, laad je effectief zoveel mogelijk uit de opbrengst van je panelen. 
+
+# Wat als het opgeleverd vermogen van de PV-installatie klein is?
+EVCC kan de Alfen laadpaal aansturen om te schakelen tussen 1-fase en 3-fase (1p/3p) laden. (Dat kan bij Alfen, maar is helaas niet bij alle merken laadpalen mogelijk). De IEC61851 standaard specificeert dat het minimum amperage om mee te laden 6A per fase is; ongeveer 1.4 kW. Vanaf 1.4 kW beschikbaar PV-vermogen (opbrengst PV-installatie minus verbruik andere apparaten) kan er dus 100% op zonne-energie geladen worden.
+
+Wanneer er per fase max 16A geleverd kan worden (configureerbaar en de juiste instelling bij een 'standaard' 3x25A netaansluiting) is dit hoe EVCC met een Alfen paal zal schakelen:
+- 1,4 tot 3,7 kW: 1-fase laden
+- 4,1 tot 11 kW: 3-fase laden
+
+*Let op: Bij loadpoints in evcc.yaml moet de phases instelling op 0 staan om automatisch schakelen te activeren. In de standaard EVCC configuratie is dit niet het geval, in het configuratievoorbeeld in deze git repo is dat wel zo ingesteld.*
 
 # Werkt mijn OCPP backoffice (zoals E-Flux of LMS) dan nog om laadkosten door te kunnen belasten?
 Ja, bij mij wel in ieder geval. Mijn Alfen laadpaal is met E-Flux verbonden en dat werkt prima. E-flux bepaalt of de laadsessie mag starten en trackt de sessies voor kostenbeheer. EVCC beheert vervolgens op hoeveel vermogen die sessies mogen laden. In principe is EVCC een alternatief load balancing systeem. In plaats van de P1 poort, stel je de laadpaal in om obv input van EVCC het laadvermogen te beheren.
